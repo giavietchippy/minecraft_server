@@ -1,6 +1,24 @@
 #!/bin/bash
-if [ ! -f server.jar ]; then
-  echo "Downloading Minecraft server..."
-  curl -o server.jar -L https://piston-data.mojang.com/v1/objects/95495a7f485eedd84ce928cef5e223b757d2f764/server.jar
+set -e
+
+VER="1.21.10"
+
+# cần jq
+apt-get update -y
+apt-get install -y jq curl
+
+MANIFEST="https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
+
+# lấy url thông tin phiên bản
+ver_url=$(curl -s "$MANIFEST" | jq -r --arg v "$VER" '.versions[] | select(.id==$v) | .url')
+if [ -z "$ver_url" ]; then
+  echo "Version $VER not found"; exit 1
 fi
-java -Xmx1024M -Xms1024M -jar server.jar nogui
+
+# lấy link server.jar từ thông tin phiên bản
+server_url=$(curl -s "$ver_url" | jq -r '.downloads.server.url')
+echo "Downloading vanilla server from: $server_url"
+curl -L -o server.jar "$server_url"
+
+echo "eula=true" > eula.txt
+java -Xmx1G -Xms1G -jar server.jar nogui
